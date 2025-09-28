@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🦅 Eagle Chatbot</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .chat-container {
+      width: 480px;
+      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-header {
+      background: #1a73e8;
+      color: #fff;
+      padding: 15px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .chat-header img {
+      width: 30px;
+      height: 30px;
+      margin-right: 10px;
+    }
+    .chat-box {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      max-height: 400px;
+    }
+    .message {
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+    .user {
+      background: #e1f5fe;
+      text-align: right;
+    }
+    .bot {
+      background: #f1f1f1;
+      text-align: left;
+    }
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #ddd;
+    }
+    .chat-input input {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      outline: none;
+    }
+    .chat-input button {
+      padding: 12px 18px;
+      border: none;
+      background: #1a73e8;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .chat-input button:hover {
+      background: #155ab6;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/1/15/White-Tailed_Eagle.jpg" alt="Eagle">
+      🦅 Eagle Chatbot
+    </div>
+    <div id="chat-box" class="chat-box"></div>
+    <div class="chat-input">
+      <input type="text" id="user-input" placeholder="Ask in English or Urdu...">
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    // Detect Urdu / English
+    function detectLanguage(text) {
+      const urduRegex = /[\u0600-\u06FF]/;
+      return urduRegex.test(text) ? "ur" : "en";
+    }
+
+    // Get info from Wikidata
+    async function getWikiData(query, lang) {
+      try {
+        const url = `https://www.wikidata.org/w/api.php?action=wbsearchentities&search=${encodeURIComponent(query)}&language=${lang}&format=json&origin=*`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.search && data.search.length > 0) {
+          return data.search[0].description || data.search[0].label;
+        }
+        return lang === "ur" ? "وکی ڈیٹا پر کوئی معلومات نہیں ملی۔" : "No info found on Wikidata.";
+      } catch {
+        return lang === "ur" ? "⚠️ وکی ڈیٹا فیچ کرنے میں مسئلہ۔" : "⚠️ Wikidata fetch error.";
+      }
+    }
+
+    // Get live Dawn News
+    async function getDawnNews(lang) {
+      try {
+        const res = await fetch("https://api.rss2json.com/v1/api.json?rss_url=https://www.dawn.com/rss");
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+          let titles = data.items.slice(0, 3).map(i => i.title);
+          if (lang === "ur") {
+            return "📰 آج کی تازہ خبریں:\n" + titles.map(t => "۔ " + t).join("\n");
+          } else {
+            return "📰 Latest News:\n" + titles.map(t => "- " + t).join("\n");
+          }
+        }
+        return lang === "ur" ? "کوئی خبر دستیاب نہیں۔" : "No news available.";
+      } catch {
+        return lang === "ur" ? "⚠️ ڈان نیوز فیچ کرنے میں مسئلہ۔" : "⚠️ Dawn news fetch error.";
+      }
+    }
+
+    // Chat function
+    async function sendMessage() {
+      const input = document.getElementById("user-input");
+      const chatBox = document.getElementById("chat-box");
+      let message = input.value.trim();
+      if (!message) return;
+
+      // Show user message
+      const userDiv = document.createElement("div");
+      userDiv.className = "message user";
+      userDiv.innerText = message;
+      chatBox.appendChild(userDiv);
+
+      input.value = "";
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      // Detect language
+      const lang = detectLanguage(message);
+
+      // Decide: News or Wikidata
+      let reply;
+      if (/news|khabar|خبریں|آج/i.test(message)) {
+        reply = await getDawnNews(lang);
+      } else {
+        const wiki = await getWikiData(message, lang);
+        reply = lang === "ur" ? `📌 وکی ڈیٹا سے: ${wiki}` : `📌 From Wikidata: ${wiki}`;
+      }
+
+      // Bot reply
+      const botDiv = document.createElement("div");
+      botDiv.className = "message bot";
+      botDiv.innerText = reply;
+      chatBox.appendChild(botDiv);
+
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+  </script>
+</body>
+</html>
